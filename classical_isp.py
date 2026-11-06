@@ -31,13 +31,21 @@ def auto_exposure(m, target=0.18):
     return float(np.clip(target / max((gr.mean() + gb.mean()) / 2, 1e-4), 1, 64))
 
 
-def gray_world(m, p=4):
-    """Shades-of-grey AWB on the RAW planes (p=1 grey world, large p -> white patch)."""
+def gray_world(m, p=1, limits=None):
+    """Grey-world AWB on the RAW planes (p > 1: shades of grey, towards white patch).
+
+    limits: ((r_min, r_max), (b_min, b_max)) gains of the illuminants the sensor is
+    calibrated for. Estimates outside that range are clamped, as camera AWB does.
+    p=1 with clamping had the lowest gain error on DIV2K.
+    """
     r, gr, gb, b = planes(m)
     ok = np.maximum(np.maximum(r, gr), np.maximum(gb, b)) < 0.95  # skip clipped pixels
     norm = lambda c: (np.clip(c[ok], 0, None) ** p).mean() ** (1 / p)
     g = (norm(gr) + norm(gb)) / 2
-    return float(g / norm(r)), 1.0, float(g / norm(b))
+    r, b = g / norm(r), g / norm(b)
+    if limits:
+        r, b = np.clip(r, *limits[0]), np.clip(b, *limits[1])
+    return float(r), 1.0, float(b)
 
 
 _HP = np.array([[1, -2, 1], [-2, 4, -2], [1, -2, 1]], np.float32) / 6  # Immerkaer, unit noise gain
@@ -80,7 +88,7 @@ def resolve_meta(m, meta):
     sensor noise (e.g. RAW files without a noise profile).
     """
     gain = meta.get('gain') or auto_exposure(m)
-    wb = meta.get('wb') or gray_world(m)
+    wb = meta.get('wb') or gray_world(m, limits=meta.get('wb_range'))
     noise = meta.get('noise') or estimate_noise(m)
     return gain, wb, noise
 

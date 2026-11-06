@@ -24,6 +24,9 @@ RGB2CAM = RGB2CAM / RGB2CAM.sum(1, keepdim=True)
 CAM2RGB = torch.linalg.inv(RGB2CAM)  # the camera's colour correction matrix
 
 BLACK, WHITE = 64, 1023  # 10-bit sensor
+# White balance gains (R, B) of the illuminants the sensor is calibrated for.
+# Training samples illuminants from this range; AWB clamps its estimate to it.
+WB_RANGE = ((1.6, 2.6), (1.3, 2.1))
 
 # Test-time capture conditions. gain = digital gain applied to reach normal
 # brightness (1/exposure), shot = sensor shot-noise level. Training covers
@@ -95,8 +98,8 @@ def sample_conditions(n):
     log_shot = torch.empty(n).uniform_(np.log(1e-4), np.log(1e-3))
     shot = log_shot.exp()
     read = (2.18 * log_shot + 1.2 + 0.26 * torch.randn(n)).exp()
-    wb = torch.stack([torch.empty(n).uniform_(1.6, 2.6), torch.ones(n),
-                      torch.empty(n).uniform_(1.3, 2.1)], 1)
+    wb = torch.stack([torch.empty(n).uniform_(*WB_RANGE[0]), torch.ones(n),
+                      torch.empty(n).uniform_(*WB_RANGE[1])], 1)
     return wb, gain, shot, read
 
 
@@ -112,5 +115,5 @@ def capture(srgb, gain=1.0, shot=2e-4, wb=(2.1, 1.0, 1.7), seed=0):
     dn = add_sensor_noise(raw4, gain, shot, read, torch.Generator().manual_seed(seed))
     mosaic = unpack(dn)[0, 0].numpy().astype(np.uint16)
     meta = dict(black=BLACK, white=WHITE, wb=tuple(wb), gain=float(gain),
-                noise=(shot, read), cam2rgb=CAM2RGB.numpy())
+                noise=(shot, read), cam2rgb=CAM2RGB.numpy(), wb_range=WB_RANGE)
     return mosaic, meta
