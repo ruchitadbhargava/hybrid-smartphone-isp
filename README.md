@@ -316,7 +316,7 @@ python benchmark.py                    # INT8 model + size / memory / latency ->
 python evaluate.py                     # quality comparison + figures       -> results/
 
 streamlit run app.py                   # interactive demo (simulated captures or upload a DNG)
-python hybrid_isp.py photo.dng -o out.png   # process a real RAW file
+python hybrid_isp.py photo.dng -o out.png   # process a real RAW file (--crop 2048 on low-RAM machines)
 ```
 
 Trained checkpoints are included in `checkpoints/`, so training can be skipped.
