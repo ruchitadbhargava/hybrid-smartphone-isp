@@ -7,9 +7,11 @@
          core weights, so it only has to learn WB, colour and tone on top.
   lite : small core trained by knowledge distillation from the core.
 
-  python train.py core --width 24 --steps 4000
-  python train.py e2e  --width 24 --steps 2500 --init checkpoints/core.pt
-  python train.py lite --width 12 --steps 3000 --teacher checkpoints/core.pt
+  python train.py core --width 24 --steps 15000 --batch 32
+  python train.py e2e  --width 24 --steps 8000  --batch 32 --init checkpoints/core.pt
+  python train.py lite --width 16 --steps 12000 --batch 32 --teacher checkpoints/core.pt
+
+Runs on the GPU when there is one (about 25 min in total on a Colab T4).
 """
 import argparse
 import glob
