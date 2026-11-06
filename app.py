@@ -35,12 +35,6 @@ def load_pipelines():
             'Hybrid-Lite INT8': hy.HybridISP(torch.jit.load('checkpoints/lite_int8.pt'))}
 
 
-def center_crop(mosaic, side):
-    h, w = mosaic.shape
-    y, x = max(0, (h - side) // 4 * 2), max(0, (w - side) // 4 * 2)  # even offsets keep RGGB
-    return mosaic[y:y + side, x:x + side]
-
-
 st.title('Hybrid learned smartphone ISP')
 st.caption('Classical front end (BLC, gain, WB, noise profile) + learned demosaic/denoise core '
            '+ classical colour and tone back end, compared with a classical and an end-to-end learned ISP.')
@@ -71,7 +65,7 @@ else:
         st.stop()
     mosaic, meta = hy.load_raw(io.BytesIO(up.getvalue()))
     if max(mosaic.shape) > MAX_SIDE:
-        mosaic = center_crop(mosaic, MAX_SIDE)
+        mosaic = hy.center_crop(mosaic, MAX_SIDE)
         st.sidebar.caption(f'Centre {MAX_SIDE}px crop processed.')
 
 m = cl.normalize(mosaic, meta)

@@ -162,6 +162,13 @@ def load_raw(path):
     return mos, meta
 
 
+def center_crop(mosaic, side):
+    """Centre crop of a Bayer mosaic; even offsets keep the RGGB phase."""
+    h, w = mosaic.shape
+    y, x = max(0, (h - side) // 4 * 2), max(0, (w - side) // 4 * 2)
+    return mosaic[y:y + side, x:x + side]
+
+
 if __name__ == '__main__':
     from PIL import Image
     ap = argparse.ArgumentParser(description='Process a RAW/DNG file with the hybrid ISP')
@@ -169,8 +176,11 @@ if __name__ == '__main__':
     ap.add_argument('-o', '--out', default='out.png')
     ap.add_argument('--model', default='checkpoints/core.pt')
     ap.add_argument('--classical', action='store_true', help='use the classical pipeline instead')
+    ap.add_argument('--crop', type=int, help='only process a centre crop of this size (less memory)')
     args = ap.parse_args()
     mos, meta = load_raw(args.raw)
+    if args.crop:
+        mos = center_crop(mos, args.crop)
     out = cl.classical_isp(mos, meta) if args.classical else HybridISP(load_model(args.model))(mos, meta)
     Image.fromarray((out * 255 + 0.5).astype(np.uint8)).save(args.out)
     print('saved', args.out)
