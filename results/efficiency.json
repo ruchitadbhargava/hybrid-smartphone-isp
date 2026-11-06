@@ -1,0 +1,63 @@
+{
+ "threads": 4,
+ "frame": "1024x1024",
+ "models": [
+  {
+   "model": "Learned e2e (FP32)",
+   "params_M": 1.133964,
+   "size_MB": 4.335696220397949,
+   "feature_mem_MB": 292.50146484375,
+   "latency_ms": 845.6986500095809
+  },
+  {
+   "model": "Hybrid core (FP32)",
+   "params_M": 1.133964,
+   "size_MB": 4.335696220397949,
+   "feature_mem_MB": 292.50146484375,
+   "latency_ms": 835.4709500126773
+  },
+  {
+   "model": "Hybrid core (INT8)",
+   "params_M": 1.133964,
+   "size_MB": 1.1373815536499023,
+   "feature_mem_MB": 163.1253662109375,
+   "latency_ms": 669.990249996772
+  },
+  {
+   "model": "Hybrid-Lite, distilled (FP32)",
+   "params_M": 0.504716,
+   "size_MB": 1.9353055953979492,
+   "feature_mem_MB": 203.0009765625,
+   "latency_ms": 413.2746500108624
+  },
+  {
+   "model": "Hybrid-Lite, distilled (INT8)",
+   "params_M": 0.504716,
+   "size_MB": 0.5280675888061523,
+   "feature_mem_MB": 113.750244140625,
+   "latency_ms": 446.7395499959821
+  }
+ ],
+ "pipelines": [
+  {
+   "pipeline": "Classical ISP",
+   "latency_ms": 1081.1783999961335
+  },
+  {
+   "pipeline": "Learned ISP (e2e)",
+   "latency_ms": 877.0091000187676
+  },
+  {
+   "pipeline": "Hybrid ISP",
+   "latency_ms": 1066.9617999810725
+  },
+  {
+   "pipeline": "Hybrid-Lite ISP (FP32)",
+   "latency_ms": 658.4459000150673
+  },
+  {
+   "pipeline": "Hybrid-Lite ISP (INT8)",
+   "latency_ms": 657.2847999923397
+  }
+ ]
+}
