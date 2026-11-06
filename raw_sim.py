@@ -84,7 +84,7 @@ def unprocess(srgb, wb):
 def add_sensor_noise(raw4, gain, shot, read, generator=None):
     """Under-exposure by 1/gain, heteroscedastic noise and 10-bit quantisation -> DN."""
     x = raw4 / gain
-    noise = torch.randn(x.shape, generator=generator)
+    noise = torch.randn(x.shape, generator=generator, device=x.device)
     x = x + noise * (shot * x.clamp(min=0) + read).sqrt()
     return (x * (WHITE - BLACK) + BLACK).round().clamp(0, WHITE)
 

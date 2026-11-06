@@ -48,8 +48,8 @@ _SEL = torch.tensor([[1., 0, 0, 0], [0, 1, 1, 0], [0, 0, 0, 1]])  # RGGB plane -
 def bilinear_demosaic(raw4):
     """Packed RGGB (N,4,h,w) -> RGB (N,3,2h,2w), normalised convolution (exact at borders)."""
     _, _, h, w = raw4.shape
-    mask = F.pixel_shuffle(_SEL.view(1, 12, 1, 1).expand(1, 12, h, w), 2)
-    k = torch.stack([_K_RB, _K_G, _K_RB])[:, None]
+    mask = F.pixel_shuffle(_SEL.to(raw4).view(1, 12, 1, 1).expand(1, 12, h, w), 2)
+    k = torch.stack([_K_RB, _K_G, _K_RB])[:, None].to(raw4)
     sparse = F.pixel_shuffle(raw4, 2) * mask
     return F.conv2d(sparse, k, padding=1, groups=3) / F.conv2d(mask, k, padding=1, groups=3)
 
@@ -85,6 +85,11 @@ def quantize_int8(net, calib):
     return convert_fx(prepared)
 
 
+def _device(net):
+    p = next(iter(net.parameters()), None)
+    return p.device if p is not None else torch.device('cpu')
+
+
 def _run(net, x):
     """Pads the packed input to a multiple of 8 (three poolings) and crops back."""
     h, w = x.shape[-2:]
@@ -108,8 +113,9 @@ class HybridISP:
     @torch.no_grad()
     def __call__(self, mosaic, meta):
         x, gain, wb, noise = _inputs(mosaic, meta, balance=True)
+        x = x.to(_device(self.net))
         cam = bilinear_demosaic(x[:, :4]) + _run(self.net, x)
-        out = render(cam, meta['cam2rgb'])[0].permute(1, 2, 0).numpy()
+        out = render(cam, meta['cam2rgb'])[0].permute(1, 2, 0).cpu().numpy()
         sigma = cl.display_sigma(gain, wb, noise, meta['cam2rgb'])
         return np.clip(cl.sharpen(out, self.sharp / (1 + 30 * sigma)), 0, 1)
 
@@ -121,7 +127,7 @@ class LearnedISP:
     @torch.no_grad()
     def __call__(self, mosaic, meta):
         x, *_ = _inputs(mosaic, meta, balance=False)
-        return _run(self.net, x)[0].permute(1, 2, 0).clamp(0, 1).numpy()
+        return _run(self.net, x.to(_device(self.net)))[0].permute(1, 2, 0).clamp(0, 1).cpu().numpy()
 
 
 # ---------------------------------------------------------------- real RAW files

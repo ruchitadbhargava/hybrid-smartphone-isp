@@ -45,8 +45,8 @@ def random_crops(imgs, n, p, rng):
 
 def synth(srgb, task, wb_jitter=0.05):
     """Clean sRGB batch -> network input from a random simulated capture."""
-    n = srgb.shape[0]
-    wb, gain, shot, read = rs.sample_conditions(n)
+    n, dev = srgb.shape[0], srgb.device
+    wb, gain, shot, read = (t.to(dev) for t in rs.sample_conditions(n))
     _, raw4 = rs.unprocess(srgb, wb)
     v = lambda t: t.view(-1, 1, 1, 1)
     dn = rs.add_sensor_noise(raw4, v(gain), v(shot), v(read))
@@ -54,7 +54,7 @@ def synth(srgb, task, wb_jitter=0.05):
     if task == 'e2e':
         wb_in = torch.ones_like(wb)
     else:  # AWB is never perfect: small gain errors teach the core to tolerate them
-        jit = torch.exp(wb_jitter * torch.randn(n, 3))
+        jit = torch.exp(wb_jitter * torch.randn(n, 3, device=dev))
         jit[:, 1] = 1
         wb_in = wb * jit
     return net_input(raw4, gain, wb_in, shot, read)
@@ -89,13 +89,15 @@ def main():
     task = 'e2e' if args.kind == 'e2e' else 'core'
     name = args.name or args.kind
     os.makedirs('checkpoints', exist_ok=True)
+    dev = 'cuda' if torch.cuda.is_available() else 'cpu'
+    torch.backends.cudnn.benchmark = True
 
     files = sorted(glob.glob('data/div2k/*.png'))
     imgs = [np.asarray(Image.open(f).convert('RGB')) for f in files]
     train_imgs, val_imgs = imgs[:-5], imgs[-5:]   # last 5 images held out
 
     torch.manual_seed(123)
-    val_y = random_crops(val_imgs, 20, 256, np.random.default_rng(123))
+    val_y = random_crops(val_imgs, 20, 256, np.random.default_rng(123)).to(dev)
     val_x = synth(val_y, task)
     torch.manual_seed(0)
     rng = np.random.default_rng(0)
@@ -103,15 +105,16 @@ def main():
     net = UNet(args.width)
     if args.init:
         net.load_state_dict(load_model(args.init).state_dict())
-    teacher = load_model(args.teacher) if args.teacher else None
+    net = net.to(dev)
+    teacher = load_model(args.teacher).to(dev) if args.teacher else None
     opt = torch.optim.Adam(net.parameters(), args.lr)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, args.steps, eta_min=args.lr / 100)
 
     log, t0 = [], time.time()
-    print(f'{name}: {sum(p.numel() for p in net.parameters()) / 1e6:.3f}M params, '
+    print(f'{name}: {sum(p.numel() for p in net.parameters()) / 1e6:.3f}M params on {dev}, '
           f'val psnr at start {validate(net, val_x, val_y, task):.2f}', flush=True)
     for step in range(1, args.steps + 1):
-        y = random_crops(train_imgs, args.batch, args.patch, rng)
+        y = random_crops(train_imgs, args.batch, args.patch, rng).to(dev)
         x = synth(y, task)
         out = forward(net, x, task)
         loss = F.l1_loss(out, y)

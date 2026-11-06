@@ -5,14 +5,15 @@ from skimage.color import deltaE_ciede2000, rgb2lab
 from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 
 _lpips = None
+_dev = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
 def lpips_distance(a, b):
     global _lpips
     if _lpips is None:
         import lpips
-        _lpips = lpips.LPIPS(net='alex', verbose=False).eval()
-    t = lambda x: torch.from_numpy(np.ascontiguousarray(x)).permute(2, 0, 1)[None].float() * 2 - 1
+        _lpips = lpips.LPIPS(net='alex', verbose=False).eval().to(_dev)
+    t = lambda x: (torch.from_numpy(np.ascontiguousarray(x)).permute(2, 0, 1)[None].float() * 2 - 1).to(_dev)
     with torch.no_grad():
         return float(_lpips(t(a), t(b)))
 
