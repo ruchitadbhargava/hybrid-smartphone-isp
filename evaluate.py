@@ -8,7 +8,6 @@ colour scenarios. Every pipeline gets exactly the same RAW + metadata.
 import glob
 import json
 import os
-import time
 
 import matplotlib
 import numpy as np
@@ -25,7 +24,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 SCENARIOS = {
     **{k: dict(v) for k, v in rs.CONDITIONS.items()},
-    # illuminant outside the training range (strong blue/purple cast)
+    # warm, tungsten-like illuminant outside the training range of the WB gains
     'unseen_illuminant': dict(gain=4, shot=5e-4, wb=(1.3, 1.0, 2.6)),
     # no as-shot WB and no noise profile: AWB + blind noise estimation
     'no_metadata': dict(gain=4, shot=5e-4, blind=True),
@@ -39,7 +38,8 @@ ABLATION = 'Hybrid (fixed noise map)'
 
 
 def pipelines():
-    core, e2e, lite = (hy.load_model(f'checkpoints/{n}.pt') for n in ('core', 'e2e', 'lite'))
+    dev = 'cuda' if torch.cuda.is_available() else 'cpu'  # INT8 model always runs on CPU
+    core, e2e, lite = (hy.load_model(f'checkpoints/{n}.pt').to(dev) for n in ('core', 'e2e', 'lite'))
     torch.backends.quantized.engine = 'onednn'
     hybrid = hy.HybridISP(core)
     return {
@@ -62,8 +62,7 @@ def write_tables(summary):
     for key, label, fmt, best in [('psnr', 'PSNR (dB) &uarr;', '{:.2f}', max),
                                   ('ssim', 'SSIM &uarr;', '{:.3f}', max),
                                   ('delta_e', 'Colour error &Delta;E2000 &darr;', '{:.2f}', min),
-                                  ('lpips', 'LPIPS &darr;', '{:.3f}', min),
-                                  ('ms', 'Runtime per image (ms, CPU)', '{:.0f}', min)]:
+                                  ('lpips', 'LPIPS &darr;', '{:.3f}', min)]:
         lines += [f'#### {label}', '', '| Method | ' + ' | '.join(scen) + ' |',
                   '|---|' + '---:|' * len(scen)]
         top = {s: best(v[key] for m, v in summary[s].items() if m != ABLATION) for s in scen}
@@ -116,11 +115,46 @@ def plot_examples(keep):
         plt.close(fig)
 
 
+def plot_training():
+    fig, ax = plt.subplots(figsize=(6.5, 4))
+    for n, label in [('core', 'Hybrid core (from scratch)'), ('e2e', 'Learned e2e (fine-tuned from core)'),
+                     ('lite', 'Hybrid-Lite (distilled from core)')]:
+        log = torch.load(f'checkpoints/{n}.pt', weights_only=False)['log']
+        ax.plot([r['step'] for r in log], [r['val_psnr'] for r in log], label=label)
+    ax.set_xlabel('training step')
+    ax.set_ylabel('validation PSNR (dB)')
+    ax.grid(alpha=0.3)
+    ax.legend()
+    fig.tight_layout()
+    fig.savefig('results/training.png', dpi=120)
+    plt.close(fig)
+
+
+def real_raw_demo(methods, path='data/raw/pixel4a.dng', side=768):
+    """Real smartphone RAW (no ground truth): centre crop of a Pixel 4a DNG."""
+    if not os.path.exists(path):
+        return
+    mos, meta = hy.load_raw(path)
+    y, x = (mos.shape[0] - side) // 4 * 2, (mos.shape[1] - side) // 4 * 2
+    mos = mos[y:y + side, x:x + side]
+    names = ['Classical', 'Learned (e2e)', 'Hybrid', 'Hybrid-Lite INT8']
+    fig, axes = plt.subplots(1, len(names), figsize=(4 * len(names), 4.4))
+    for ax, n in zip(axes, names):
+        ax.imshow(methods[n](mos, meta))
+        ax.set_title(n)
+        ax.axis('off')
+    fig.suptitle('Real RAW input: Google Pixel 4a DNG (raw.pixls.us, CC0), centre crop')
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
+    fig.savefig('results/real_raw_pixel4a.png', dpi=110)
+    plt.close(fig)
+
+
 def main():
     os.makedirs('results', exist_ok=True)
     files = sorted(glob.glob('data/kodak/*.png'))
     methods = pipelines()
     scores = {s: {m: [] for m in methods} for s in SCENARIOS}
+    noise_ratio = {s: [] for s in rs.CONDITIONS}  # blind estimate / true noise std at mid grey
     keep = {}
     for k, (scen, cfg) in enumerate(SCENARIOS.items()):
         for i, f in enumerate(files):
@@ -131,13 +165,14 @@ def main():
             mosaic, meta = rs.capture(gt, cfg['gain'], cfg['shot'], wb, seed=1000 * k + i)
             if cfg.get('blind'):
                 meta = {**meta, 'wb': None, 'noise': None}
+            if scen in noise_ratio:
+                (s0, r0), (s1, r1) = cl.estimate_noise(cl.normalize(mosaic, meta)), meta['noise']
+                noise_ratio[scen].append(float(np.sqrt((s0 * 0.2 + r0) / (s1 * 0.2 + r1))))
             for m, isp in methods.items():
                 if m == ABLATION and scen not in rs.CONDITIONS:
                     continue
-                t = time.perf_counter()
                 out = isp(mosaic, meta)
-                ms = (time.perf_counter() - t) * 1000
-                q = {**quality(out, gt), 'ms': ms}
+                q = quality(out, gt)
                 scores[scen][m].append(q)
                 if (name, scen) in FIGURES:
                     keep[(name, scen, m)] = (out, q)
@@ -151,8 +186,15 @@ def main():
     with open('results/metrics.json', 'w') as f:
         json.dump(summary, f, indent=1)
     write_tables(summary)
+    with open('results/metrics.md', 'a', encoding='utf-8') as f:
+        f.write('\n#### Blind noise estimation (estimated / true noise std at mid grey)\n\n'
+                '| Scenario | median | min | max |\n|---|---:|---:|---:|\n')
+        f.writelines(f'| {s} | {np.median(v):.2f} | {min(v):.2f} | {max(v):.2f} |\n'
+                     for s, v in noise_ratio.items() if v)
     plot_robustness(summary)
     plot_examples(keep)
+    plot_training()
+    real_raw_demo(methods)
 
 
 if __name__ == '__main__':
