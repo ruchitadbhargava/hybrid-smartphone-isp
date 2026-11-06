@@ -143,11 +143,15 @@ def load_raw(path):
         colors = np.array([r.color_desc.decode()[i] for i in pat.ravel()]).reshape(2, 2)
         dy, dx = (int(v) for v in np.argwhere(colors == 'R')[0])
         wb = np.array(r.camera_whitebalance[:3], np.float32)
-        rgb2cam = np.array(r.rgb_xyz_matrix[:3], np.float32) @ rs.RGB2XYZ.numpy()
+        xyz2cam = np.array(r.rgb_xyz_matrix[:3], np.float32)
+        if xyz2cam.any():
+            rgb2cam = xyz2cam @ rs.RGB2XYZ.numpy()
+            cam2rgb = np.linalg.inv(rgb2cam / rgb2cam.sum(1, keepdims=True))
+        else:  # some DNGs only give LibRaw's ready-made camera->sRGB matrix
+            cam2rgb = np.array(r.color_matrix, np.float32)[:, :3]
     mos = mos[dy:, dx:]
     mos = mos[:mos.shape[0] // 2 * 2, :mos.shape[1] // 2 * 2]
-    rgb2cam /= rgb2cam.sum(1, keepdims=True)
-    meta = dict(black=0.0, white=1.0, gain=None, noise=None, cam2rgb=np.linalg.inv(rgb2cam),
+    meta = dict(black=0.0, white=1.0, gain=None, noise=None, cam2rgb=cam2rgb,
                 wb=tuple(float(v) for v in wb / wb[1]) if wb.all() else None)
     return mos, meta
 
