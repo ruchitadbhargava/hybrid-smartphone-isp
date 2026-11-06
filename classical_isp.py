@@ -153,3 +153,52 @@ def to_ycc(x):
 
 def from_ycc(x):
     return x @ YCC2RGB.T
+
+
+# ---------------------------------------------------------------- denoise / sharpen
+
+def display_sigma(gain, wb, noise, ccm, level=0.18):
+    """Approximate noise std after gain, WB, CCM and gamma at a mid-grey level."""
+    shot, read = noise
+    w = np.asarray(wb, np.float32)
+    var = shot * gain * w * level + read * (gain * w) ** 2    # per channel after WB
+    var = (np.asarray(ccm, np.float32) ** 2) @ var              # CCM mixes the channels
+    return float(np.sqrt(var.mean()) * level ** (1 / 2.2 - 1) / 2.2)  # gamma slope
+
+
+def denoise(x, sigma, k_luma=0.6, k_chroma=4.0):
+    """Edge-preserving denoising in YCbCr: non-local means on luma, bilateral on chroma."""
+    if sigma < 0.5 / 255:
+        return x
+    ycc = to_ycc(x)
+    y8 = np.clip(ycc[..., 0] * 255, 0, 255).astype(np.uint8)
+    ycc[..., 0] = cv2.fastNlMeansDenoising(y8, None, h=k_luma * sigma * 255,
+                                           templateWindowSize=7, searchWindowSize=21) / 255.0
+    for ch in (1, 2):
+        ycc[..., ch] = cv2.bilateralFilter(np.ascontiguousarray(ycc[..., ch]), 9, k_chroma * sigma, 4)
+    return from_ycc(ycc)
+
+
+def sharpen(x, amount=0.5, radius=1.0):
+    """Unsharp masking on luma only, so no colour fringes are added."""
+    ycc = to_ycc(x)
+    y = np.ascontiguousarray(ycc[..., 0])
+    ycc[..., 0] = y + amount * (y - cv2.GaussianBlur(y, (0, 0), radius))
+    return from_ycc(ycc)
+
+
+def classical_isp(mosaic, meta, k_luma=0.6, k_chroma=4.0, sharp=0.3):
+    """Conventional baseline:
+    BLC -> gain -> WB -> demosaic -> CCM -> gamma -> denoise -> tone map -> sharpen.
+    Denoise and sharpening strength follow the (known or estimated) noise level.
+    """
+    m = normalize(mosaic, meta)
+    gain, wb, noise = resolve_meta(m, meta)
+    m = np.minimum(apply_wb(m * gain, wb), 1)   # saturated highlights -> white
+    rgb = np.clip(apply_ccm(demosaic_mhc(m), meta['cam2rgb']), 0, 1)
+    x = gamma(rgb)
+    sigma = display_sigma(gain, wb, noise, meta['cam2rgb'])
+    x = denoise(x, sigma, k_luma, k_chroma)
+    x = tone_map(x)
+    x = sharpen(x, amount=sharp / (1 + 30 * sigma))  # back off when noisy
+    return np.clip(x, 0, 1)
