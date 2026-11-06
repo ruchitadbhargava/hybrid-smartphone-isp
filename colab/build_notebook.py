@@ -35,7 +35,7 @@ def main():
                       f'!mkdir -p data/raw && wget -q -O data/raw/pixel4a.dng "{DNG}" && ls -la data/raw'))
     cells.append(code(f'!python train.py core --width 24 --steps 15000 --batch 32\n{CHECK}'))
     cells.append(code(f'!python train.py e2e --width 24 --steps 8000 --batch 32 --init checkpoints/core.pt\n{CHECK}'))
-    cells.append(code(f'!python train.py lite --width 12 --steps 12000 --batch 32 --teacher checkpoints/core.pt\n{CHECK}'))
+    cells.append(code(f'!python train.py lite --width 16 --steps 12000 --batch 32 --teacher checkpoints/core.pt\n{CHECK}'))
     cells.append(code(f'!python -c "import benchmark; benchmark.export_int8()"\n{CHECK}'))
     cells.append(code(f'!python evaluate.py\n{CHECK}\n!cat results/metrics.md'))
     cells.append(code("!zip -qr hybrid_isp_colab_results.zip checkpoints results && ls -la hybrid_isp_colab_results.zip\n"
