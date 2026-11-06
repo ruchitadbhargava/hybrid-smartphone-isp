@@ -74,13 +74,21 @@ def latency_ms(fn, *args, runs=10):
     return 1000 * float(np.median(times))
 
 
+def export_int8(calib=None):
+    """Quantises Hybrid-Lite to INT8 and saves it as TorchScript (deployable model)."""
+    torch.backends.quantized.engine = 'onednn'
+    calib = calibration_inputs() if calib is None else calib
+    lite_q = hy.quantize_int8(hy.load_model('checkpoints/lite.pt'), calib)
+    torch.jit.save(torch.jit.trace(lite_q, calib[:1]), 'checkpoints/lite_int8.pt')
+    return lite_q
+
+
 def main():
     os.makedirs('results', exist_ok=True)
-    torch.backends.quantized.engine = 'onednn'
     calib = calibration_inputs()
+    lite_q = export_int8(calib)
     core, e2e, lite = (hy.load_model(f'checkpoints/{n}.pt') for n in ('core', 'e2e', 'lite'))
-    core_q, lite_q = hy.quantize_int8(core, calib), hy.quantize_int8(lite, calib)
-    torch.jit.save(torch.jit.trace(lite_q, calib[:1]), 'checkpoints/lite_int8.pt')
+    core_q = hy.quantize_int8(core, calib)
 
     x = torch.rand(1, 8, H // 2, W // 2)
     rows = []
