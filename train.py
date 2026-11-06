@@ -43,7 +43,7 @@ def random_crops(imgs, n, p, rng):
     return torch.from_numpy(np.stack(out)).permute(0, 3, 1, 2).float() / 255
 
 
-def synth(srgb, task, wb_jitter=0.05):
+def synth(srgb, task):
     """Clean sRGB batch -> network input from a random simulated capture."""
     n, dev = srgb.shape[0], srgb.device
     wb, gain, shot, read = (t.to(dev) for t in rs.sample_conditions(n))
@@ -51,12 +51,8 @@ def synth(srgb, task, wb_jitter=0.05):
     v = lambda t: t.view(-1, 1, 1, 1)
     dn = rs.add_sensor_noise(raw4, v(gain), v(shot), v(read))
     raw4 = (dn - rs.BLACK) / (rs.WHITE - rs.BLACK)
-    if task == 'e2e':
-        wb_in = torch.ones_like(wb)
-    else:  # AWB is never perfect: small gain errors teach the core to tolerate them
-        jit = torch.exp(wb_jitter * torch.randn(n, 3, device=dev))
-        jit[:, 1] = 1
-        wb_in = wb * jit
+    # the core gets white-balanced input, the end-to-end model has to learn WB itself
+    wb_in = torch.ones_like(wb) if task == 'e2e' else wb
     return net_input(raw4, gain, wb_in, shot, read)
 
 
