@@ -1,0 +1,11 @@
+torch>=2.1
+numpy
+opencv-python
+scikit-image
+scipy
+matplotlib
+pillow
+lpips
+rawpy
+streamlit
+pandas
