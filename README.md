@@ -124,8 +124,8 @@ context for colour and brightness), and pixel-shuffle output to full resolution.
 |---|---|---|---|
 | Hybrid core | 24 | 1.13 M | from scratch, 15k steps, loss on the final sRGB output |
 | Learned ISP (e2e) | 24 | 1.13 M | **fine-tuned from the hybrid core weights** (8k steps): same network adapted to also learn WB, colour correction and tone |
-| Hybrid-Lite | 16 | 0.51 M | **knowledge distillation** from the hybrid core (12k steps), loss = 0.5 L1(GT) + 0.5 L1(teacher) |
-| Hybrid-Lite INT8 | 16 | 0.51 M | **post-training static INT8 quantisation** (FX graph mode, oneDNN), calibrated on 64 training crops; first conv and output head kept in FP32 |
+| Hybrid-Lite | 16 | 0.50 M | **knowledge distillation** from the hybrid core (12k steps), loss = 0.5 L1(GT) + 0.5 L1(teacher) |
+| Hybrid-Lite INT8 | 16 | 0.50 M | **post-training static INT8 quantisation** (FX graph mode, oneDNN), calibrated on 64 training crops; first conv and output head kept in FP32 |
 
 Batch 32, 128x128 crops, Adam (3e-4, cosine decay), L1 loss, about 25 min in total on a T4.
 Validation PSNR during training:
