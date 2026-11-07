@@ -19,6 +19,7 @@ import classical_isp as cl
 import hybrid_isp as hy
 import raw_sim as rs
 from metrics import quality
+from prepare_data import get_kodak
 
 MAX_SIDE = 1536  # crop big RAW files so the CPU demo stays responsive
 
@@ -44,9 +45,10 @@ src = st.sidebar.radio('Input', ['Simulated capture (Kodak24)', 'Upload RAW / DN
 gt = None
 if src.startswith('Simulated'):
     files = sorted(glob.glob('data/kodak/*.png'))
-    if not files:
-        st.error('Run `python prepare_data.py` first.')
-        st.stop()
+    if not files:  # fresh deployment: fetch the 24 Kodak test images (~15 MB) once
+        with st.spinner('Downloading the Kodak test images...'):
+            get_kodak()
+        files = sorted(glob.glob('data/kodak/*.png'))
     f = st.sidebar.selectbox('Scene', files, index=18, format_func=lambda p: p[-11:-4])
     gain = st.sidebar.select_slider('Light level (digital gain)', [1, 2, 4, 8, 16, 32, 64], value=16,
                                     help='x1 = daylight, x32 = night, x64 is outside the training range')
