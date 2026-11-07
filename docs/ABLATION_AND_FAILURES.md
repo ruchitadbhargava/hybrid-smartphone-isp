@@ -1,6 +1,6 @@
 # Ablation study and failure-case analysis
 
-Team Kuck coders, problem P2. All quality numbers come from the Kodak24 test captures (24 images per scenario,
+Team T67 (Kuck coders), problem P2. All quality numbers come from the Kodak24 test captures (24 images per scenario,
 the same captures for every variant) in `results/metrics.json`, except the rows marked "run 1", which come from
 our first full training run.
 

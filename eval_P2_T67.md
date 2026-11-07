@@ -1,6 +1,6 @@
 1RUA24CSE0378,1RUA24CSE0457,1RUA24CSE0346,1RUA24CSE0379,1RUA24CSE0394
 
-# Comparative evaluation: P2, Team Kuck coders
+# Comparative evaluation: P2, Team T67 (Kuck coders)
 
 Intelligent and Computationally Efficient Smartphone ISP. Test set: Kodak24 converted to RAW under 7 scenarios (168 captures). Quality = mean over all captures. Latency and memory: 1024x1024 frame on an Intel i5-10210U laptop CPU (4 threads).
 

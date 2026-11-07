@@ -1,6 +1,6 @@
 # Design document: hybrid smartphone ISP
 
-Team Kuck coders, problem P2 (Intelligent and Computationally Efficient Smartphone ISP).
+Team T67 (Kuck coders), problem P2 (Intelligent and Computationally Efficient Smartphone ISP).
 
 ## 1. Goal
 
@@ -137,7 +137,7 @@ LPIPS (AlexNet). Efficiency is measured on a 1024 x 1024 frame on an Intel i5-10
 serialized model size, median latency after 2 warm-up runs (10 timed runs per model, 5 per full pipeline), and
 the total size of the feature maps per frame.
 
-Results are in [`eval_P2_KuckCoders.md`](../eval_P2_KuckCoders.md), the ablation study and failure cases in
+Results are in [`eval_P2_T67.md`](../eval_P2_T67.md), the ablation study and failure cases in
 [`ABLATION_AND_FAILURES.md`](ABLATION_AND_FAILURES.md).
 
 ## 6. Limitations

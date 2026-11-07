@@ -1,4 +1,4 @@
-"""Writes the submission file eval_P2_KuckCoders.md from results/metrics.json and
+"""Writes the submission file eval_P2_T67.md from results/metrics.json and
 results/efficiency.json (run evaluate.py and benchmark.py first).
 
 First line: all team USNs, comma separated. Metrics follow the order of the
@@ -10,7 +10,7 @@ import json
 import numpy as np
 
 USNS = ['1RUA24CSE0378', '1RUA24CSE0457', '1RUA24CSE0346', '1RUA24CSE0379', '1RUA24CSE0394']
-OUT = 'eval_P2_KuckCoders.md'
+OUT = 'eval_P2_T67.md'
 # method in metrics.json -> (label, model row in efficiency.json, pipeline row in efficiency.json)
 METHODS = [('Classical', 'Classical ISP (baseline)', None, 'Classical ISP'),
            ('Learned (e2e)', 'Learned ISP, end-to-end U-Net', 'Learned e2e (FP32)', 'Learned ISP (e2e)'),
@@ -28,7 +28,7 @@ def main():
     mean = lambda m, k: np.mean([q[s][m][k] for s in scen])
 
     lines = [','.join(USNS), '',
-             '# Comparative evaluation: P2, Team Kuck coders', '',
+             '# Comparative evaluation: P2, Team T67 (Kuck coders)', '',
              'Intelligent and Computationally Efficient Smartphone ISP. Test set: Kodak24 converted to RAW under '
              f'{len(scen)} scenarios ({24 * len(scen)} captures). Quality = mean over all captures. Latency and memory: '
              f"{eff['frame']} frame on an Intel i5-10210U laptop CPU ({eff['threads']} threads).", '',
