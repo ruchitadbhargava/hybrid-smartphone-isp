@@ -1,6 +1,26 @@
 # Hybrid Smartphone ISP
 
 CIE-3 project, Problem Statement P2: *Intelligent and Computationally Efficient Smartphone ISP*.
+Team **Kuck coders**:
+
+| Name | USN |
+|---|---|
+| Ruchita D Bhargava | 1RUA24CSE0378 |
+| Siddharth Shivakumar | 1RUA24CSE0457 |
+| Raahul S Nayar | 1RUA24CSE0346 |
+| Rudhayesh | 1RUA24CSE0379 |
+| Sai Vishod Murulidharan | 1RUA24CSE0394 |
+
+## Deliverables
+
+| Deliverable | Where |
+|---|---|
+| Live hosted application | [hybrid-smartphone-isp.streamlit.app](https://hybrid-smartphone-isp.streamlit.app) (Streamlit Community Cloud) |
+| Complete source code | this repository (file list at the end) |
+| System architecture diagram | [`docs/architecture.png`](docs/architecture.png), shown below |
+| Design document | [`docs/DESIGN.md`](docs/DESIGN.md) |
+| Comparative evaluation results | [`eval_P2_KuckCoders.md`](eval_P2_KuckCoders.md) |
+| Ablation study and failure-case analysis | [`docs/ABLATION_AND_FAILURES.md`](docs/ABLATION_AND_FAILURES.md) |
 
 This repo implements three complete RAW-to-RGB pipelines and compares them:
 
@@ -36,6 +56,10 @@ PSNR (dB) / colour error (CIEDE2000). Latency: whole RAW-to-sRGB pipeline for a 
   the learned white balance of the end-to-end model is slightly better than grey-world AWB. Details below.
 
 ## Pipeline design
+
+![System architecture](docs/architecture.png)
+
+The same flow as a diagram GitHub renders natively:
 
 ```mermaid
 flowchart LR
@@ -314,6 +338,8 @@ python train.py lite --width 16 --steps 12000 --batch 32 --teacher checkpoints/c
 
 python benchmark.py                    # INT8 model + size / memory / latency -> results/efficiency.md
 python evaluate.py                     # quality comparison + figures       -> results/
+python report_figures.py               # extra figures                      -> results/
+python make_eval.py                    # submission file                    -> eval_P2_KuckCoders.md
 
 streamlit run app.py                   # interactive demo (simulated captures or upload a DNG)
 python hybrid_isp.py photo.dng -o out.png   # process a real RAW file (--crop 2048 on low-RAM machines)
@@ -336,6 +362,9 @@ Trained checkpoints are included in `checkpoints/`, so training can be skipped.
 | `app.py` | Streamlit demo |
 | `test_isp.py` | sanity checks for the building blocks (`python test_isp.py`) |
 | `colab/` | self-contained Colab notebook used for training + the script that builds it |
+| `make_eval.py` | writes the submission file `eval_P2_KuckCoders.md` from the results |
+| `report_figures.py` | extra figures: extreme low light, intermediate states of the hybrid |
+| `docs/` | design document, ablation and failure analysis, architecture diagrams |
 
 ## References
 
